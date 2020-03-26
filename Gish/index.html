@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Gish</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+    var config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 300 },
+                debug: false
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update,
+        },
+        audio: {
+            disableWebAudio: true
+        }
+    };
+
+    var music;
+    var player;
+    var pies;
+    var bees;
+    var platforms;
+    var score = 0;
+    var scoreText;
+
+    var game = new Phaser.Game(config);
+
+    function preload ()
+    {
+        this.load.audio('theme', [
+            'assets/happy-chloe_terrasound_de.ogg',
+            'assets/happy-chloe_terrasound_de.mp3'
+        ]);
+        this.load.image('rainbow', 'assets/rainbow.png');
+        this.load.image('ground', 'assets/platform.png');
+        this.load.image('pie', 'assets/pie.png');
+        this.load.image('bee', 'assets/bee.png');
+        this.load.spritesheet('assbutt', 'assets/assbutt.png', { frameWidth: 
+                48, frameHeight: 50 });
+        this.load.image('left', 'assets/left.png');
+        this.load.image('right', 'assets/right.png');
+        this.load.image('jump', 'assets/jump.png');
+    }
+
+    function create () {
+
+        // Background music
+        music = this.sound.add('theme');
+        music.play();
+
+        //  A simple background picture for the game.
+        this.add.image(400, 300, 'rainbow');
+
+        //  The platforms group contains the ground and the 2 ledges to jump on.
+        platforms = this.physics.add.staticGroup();
+        platforms.create(400, 568, 'ground').setScale(2).refreshBody();
+        platforms.create(600, 400, 'ground');
+        platforms.create(50, 250, 'ground');
+        platforms.create(750, 220, 'ground');
+
+        // The player and its settings.
+        player = this.physics.add.sprite(100, 450, 'assbutt');
+
+        //  Player physics properties. Give the little guy a slight bounce.
+        player.setBounce(0.2);
+        player.setCollideWorldBounds(true);
+
+        //  Player animations, turning, walking left and walking right.
+        this.anims.create({
+            key: 'left',
+            frames: this.anims.generateFrameNumbers('assbutt', {
+                start: 0,
+                end: 1
+            }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'turn',
+            frames: [{key: 'assbutt', frame: 2}],
+            frameRate: 20
+        });
+
+        this.anims.create({
+            key: 'right',
+            frames: this.anims.generateFrameNumbers('assbutt', {
+                start: 3,
+                end: 4
+            }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        //  Some pies to collect, 12 in total, evenly spaced 70 pixels apart along the x axis.
+        pies = this.physics.add.group({
+            key: 'pie',
+            repeat: 11,
+            setXY: {x: 12, y: 0, stepX: 70}
+        });
+
+        pies.children.iterate(function (child) {
+
+            //  Give each pie a slightly different bounce.
+            child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+
+        });
+
+        bees = this.physics.add.group();
+        scoreText = this.add.text(16, 16, 'score: 0', {
+            fontSize: '32px',
+            fill: '#000'
+        });
+
+        //  Collide the player and the pies with the platforms.
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(pies, platforms);
+        this.physics.add.collider(bees, platforms);
+        this.physics.add.collider(player, bees, hitBee, null, this);
+
+        //  Checks to see if the player overlaps with any of the pies.
+        this.physics.add.overlap(player, pies, collectPies, null, this);
+
+        // Key system to navigate the sprite.
+        this.input.on('pointerdown', function(pointer)
+        {
+            if (player.body.touching.down) {
+                player.setVelocityY(-330);
+            }
+        });
+
+        this.input.on('pointermove', function(pointer)
+        {
+            if (pointer.x > player.x) {
+                player.setVelocityX(160);
+                player.anims.play('right', true);
+            } else if (pointer.x < player.x) {
+                player.setVelocityX(-160);
+                player.anims.play('left', true);
+            } else {
+                player.setVelocityX(0);
+                player.anims.play('turn');
+            }
+        }, this);
+
+        this.input.on('pointerup', function(pointer)
+        {
+            player.setVelocityX(0);
+            player.anims.play('turn');
+        });
+    }
+
+
+    function update () { }
+
+    function collectPies (player, pie)
+    {
+        pie.disableBody(true, true);
+
+        score += 10;
+        scoreText.setText('Score: ' + score);
+
+        if (pies.countActive(true) === 0)
+        {
+            //  A new batch of pies to collect.
+            pies.children.iterate(function (child) {
+
+                child.enableBody(true, child.x, 0, true, true);
+
+            });
+
+            var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+            var bee = bees.create(x, 16, 'bee');
+
+            bee.setBounce(1);
+            bee.setCollideWorldBounds(true);
+            bee.setVelocity(Phaser.Math.Between(-200, 200), 20);
+            bee.allowGravity = false;
+        }
+    }
+
+    function hitBee (player)
+    {
+        this.physics.pause();
+        player.setTint(0xff0000);
+        player.anims.play('turn');
+        score = 0;
+
+        // Restart the game.
+        this.time.delayedCall(500, function() {
+            this.scene.restart();
+        }, [], this);
+    }
+
+</script>
+
+</body>
+</html>

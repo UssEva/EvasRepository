@@ -1,0 +1,23 @@
+{
+  "name": "Gish",
+  "homepage": "https://github.com/UssEva/EvasRepository",
+  "authors": [
+    "Eva"
+  ],
+  "description": "Assbutt Game",
+  "main": "Gish.html",
+  "keywords": [
+    "Gish",
+    "Fun",
+    "Silly"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
